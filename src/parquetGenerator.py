@@ -17,12 +17,22 @@ def generate_floats(n, pct_null, repeats=1):
 
     return unique_values.repeat(repeats)
 
+def generate_ints(n, pct_null, repeats=1):
+    nunique = int(n / repeats)
+    unique_values = np.random.randint(0, nunique, nunique)
+    num_nulls = int(nunique * pct_null)
+    null_indices = np.random.choice(nunique, size=num_nulls, replace=False)
+    unique_values[null_indices] = 0
+
+    return unique_values.repeat(repeats)
+
 DATA_GENERATORS = {
-    'float64': generate_floats
+    'float64': generate_floats,
+    'int': generate_ints
 }
 
 def generate_data(total_size, ncols, pct_null=0.1, repeats=1, dtype='float64'):
-    type_ = np.dtype('float64')
+    type_ = np.dtype(dtype)
     nrows = total_size / ncols / np.dtype(type_).itemsize
 
     datagen_func = DATA_GENERATORS[dtype]
@@ -37,7 +47,7 @@ def write_to_parquet(df, out_path, compression='SNAPPY'):
     arrow_table = pa.Table.from_pandas(df)
     if compression == 'UNCOMPRESSED':
         compression = None
-    pq.write_table(arrow_table, out_path, use_dictionary=False,
+    pq.write_table(arrow_table, out_path, row_group_size= 1000000, use_dictionary=False,
                    compression=compression)
 
 def read_fastparquet(path):
@@ -48,7 +58,7 @@ def read_pyarrow(path, nthreads=1):
 
 MEGABYTE = 1 << 20
 DATA_SIZE = 8 * 1024 * MEGABYTE
-NCOLS = 4000
+NCOLS = 100
 
 cases = {
     # 'high_entropy': {
@@ -57,7 +67,8 @@ cases = {
     # },
     'low_entropy': {
         'pct_null': 0.1,
-        'repeats': 1000
+        'repeats': 100,
+        'dtype': 'int'
     }
 }
 
